@@ -42,5 +42,31 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // 1. zx circuit
+    Mux16(a=x, sel=zx, out=x1);
+    // 2. nx circuit
+    Not16(in=x1, out=nx1);
+    Mux16(a=x1, b=nx1, sel=nx, out=x2);
+
+    // 3. zy circuit
+    Mux16(a=y, sel=zy, out=y1);
+    // 4. ny circuit
+    Not16(in=y1, out=ny1);
+    Mux16(a=y1, b=ny1, sel=ny, out=y2);
+
+    // 5. f=(add or AND) circuit
+    Add16(a=x2, b=y2, out=fadd);
+    And16(a=x2, b=y2, out=fand);
+    Mux16(a=fand, b=fadd, sel=f, out=fout);
+
+    // 6. no circuit & ng circuit
+    Not16(in=fout, out=nfout);
+    Mux16(a=fout, b=nfout, sel=no, out=out, out[15]=ng, out[0..7]=oright, out[8..15]=oleft);
+
+    // 7. zr circuit 
+    Or8Way(in=oright, out=or1);
+    Or8Way(in=oleft, out=or2);
+    Or(a=or1, b=or2, out=or3);
+    Not(in=or3, out=zr);
+
 }

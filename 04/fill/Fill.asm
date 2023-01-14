@@ -12,3 +12,54 @@
 // the screen should remain fully clear as long as no key is pressed.
 
 // Put your code here.
+    
+(END)
+    @flg
+    M=0
+    @24576
+    D=M
+    @PUSH
+    D;JGT
+    @WRITE
+    0;JMP
+(PUSH)
+    @flg
+    M=-1
+    @WRITE
+    0;JMP
+(WRITE)
+    @i
+    M=0
+    @8192
+    D=A
+    @imax
+    M=D
+// i行目のループ i=0;i<8192; i++
+(LOOP)
+    @i
+    D=M
+    @imax
+    D=D-M
+    @END
+    D;JGE
+// 描画　SCREENのポインタからM[i]分だけシフトした位置を黒or白に変更
+    @position
+    M=0
+    @SCREEN
+    D=A
+    @position
+    M=D+M
+    @i
+    D=M
+    @position
+    M=D+M
+    @flg
+    D=M
+    @position
+    A=M
+    M=D
+
+    @i
+    M=M+1
+    @LOOP
+    0;JMP

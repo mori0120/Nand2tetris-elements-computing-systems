@@ -27,5 +27,21 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // アドレスが0x4000までならin loadはRAM。
+    // アドレスが0x4000以上0x5FFF以下ならin, loadはスクリーン。
+    DMux(in=load, sel=address[14], a=loadM, b=loadSTmp);
+    Not(in=address[13], out=nad13);
+    And(a=loadSTmp, b=nad13, out=loadS);
+    RAM16K(in=in, load=loadM, address=address[0..13], out=outM);
+    Screen(in=in, load=loadS, address=address[0..12], out=outS);
+    // アドレスが0x6000(0b110000000000000)ならoutputはキーボード。
+    // アドレスが0x6001以上ならoutputはfalse（無効なアドレスのため）
+    // address[0..12], NOT(address[13]), NOT(address[14])が全て0であることを確認する。
+    Keyboard(out=outK);
+    Or8Way(in=address[0..7], out=or1);
+    Not(in=address[14], out=nad14);
+    Or8Way(in[0..4]=address[8..12], in[5]=nad13, in[6]=nad14, out=or2);
+    Or(a=or1, b=or2, out=keyFlag);
+    Mux4Way16(a=outS, b=outS, c=outK, sel[1]=address[13], sel[0]=keyFlag, out=outSorK);
+    Mux16(a=outM, b=outSorK, sel=address[14], out=out);
 }

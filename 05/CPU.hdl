@@ -39,5 +39,41 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // instruction[15]=0 => A命令
+    Mux16(a=instruction, b=outALU, sel=instruction[15], out=outAtmp);
+
+    // A命令またはd1=1のC命令 (instruction[15]=0 or instruction[5]=1) => ARegisterを更新
+    Not(in=instruction[15], out=nin0);
+    Or(a=nin0, b=instruction[5], out=ARupdate);
+    ARegister(in=outAtmp, load=ARupdate, out=outA, out[0..14]=addressM);
+
+    // A or M[A] : A if (instruction[15]=0 or instruction[12]=0), M else
+    //            <=> M if (instruction[15]=1 and instruction[12]=1), A else
+    And(a=instruction[15], b=instruction[12], out=mFlag);
+    Mux16(a=outA, b=inM, sel=mFlag, out=inAorM);
+
+    // C命令でd2=1 ( instruction[15]=1 and instruction[4]=1 ) => DRegisterを更新
+    And(a=instruction[15], b=instruction[4], out=dFlag);
+    DRegister(in=outALU, load=dFlag, out=inD);
+    ALU(
+        x=inD, y=inAorM, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6],
+        out=outM, out=outALU, zr=isZero, ng=isNega
+    );
+
+    // C命令でd3=1 ( instruction[15]=1 and instruction[3]=1 ) ならwriteM=1
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    // PCを更新
+    // if instruction[15]=1 and ((j1=1 and isNega=1) or (j2=1 and isZero=1) or (j3=1 and (isNega=0 and isZero=0))) => load=1
+    // inc=1
+    Or(a=isNega, b=isZero, out=isNZ);
+    Not(in=isNZ, out=isPosi);
+    And(a=instruction[0], b=isPosi, out=isGT);
+    And(a=instruction[1], b=isZero, out=isEQ);
+    And(a=instruction[2], b=isNega, out=isLT);
+    Or(a=isGT, b=isEQ, out=isGE);
+    Or(a=isGE, b=isLT, out=flagTmp);
+    And(a=instruction[15], b=flagTmp, out=loadFlag);
+    PC(in=outA, load=loadFlag, inc=true, reset=reset, out[0..14]=pc);
+
 }

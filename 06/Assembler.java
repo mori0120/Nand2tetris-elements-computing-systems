@@ -9,18 +9,34 @@ import java.nio.file.Paths;
 class Assembler{
     public static void main(String[] args){
         try{
-            if(args.length!=1) throw new IllegalArgumentException();
-            if(args[0].indexOf(".asm")<0) throw new IllegalArgumentException();
+            if(args.length!=1) throw new IllegalArgumentException("File path args should be only one.");
+            if(args[0].indexOf(".asm")<0) throw new IllegalArgumentException("File type is invalid. Only asm file is valid.");
             Path path = Paths.get(args[0].replace(".asm",".hack"));
             BufferedWriter file = Files.newBufferedWriter(path);
             Parser parser = new Parser(args[0]);
+            SymbolTable table = new SymbolTable();
+            int address = 16;
+            int curr = -1;
+            while(parser.hasMoreCommands()){
+                parser.advance();
+                String commandType = parser.commandType();
+                if(commandType.equals("L_COMMAND")) table.addEntry(parser.symbol(), curr+1);
+                else curr++;
+            }
+            parser.backToStart();
             while(parser.hasMoreCommands()){
                 parser.advance();
                 String str = "";
                 String commandType = parser.commandType();
-                if(commandType.equals("A_COMMAND") || commandType.equals("L_COMMAND")){
+                if(commandType.equals("L_COMMAND")) continue;
+                if(commandType.equals("A_COMMAND")){
                     String symbol = parser.symbol();
-                    str = Integer.toBinaryString(Integer.valueOf(symbol));
+                    if(symbol.matches("[0-9]*")) str = Integer.toBinaryString(Integer.valueOf(symbol));
+                    else{
+                        if(!table.contains(symbol)) table.addEntry(symbol, address++);
+                        str = Integer.toBinaryString(table.getAddress(symbol));
+                    }
+                    if(str.length()>16) throw new IndexOutOfBoundsException("Given number is out of range of memory address(0-32767).");
                     while(str.length()<16){
                         str = "0"+str;
                     }
@@ -31,7 +47,7 @@ class Assembler{
                 file.newLine();
             }
             file.close();
-        } catch(IOException|IllegalArgumentException ex){
+        } catch(IOException|IllegalArgumentException|IndexOutOfBoundsException ex){
             ex.printStackTrace();
         }
     }
@@ -56,6 +72,11 @@ class Parser{
         } catch(IOException|IllegalArgumentException ex) {
             ex.printStackTrace();
         }
+    }
+
+    public void backToStart(){
+        this.index = -1;
+        this.command = "";
     }
 
     public boolean hasMoreCommands(){
@@ -182,5 +203,41 @@ class Code{
 
     public static String jump(String jump){
         return Code.jumpMap.getOrDefault(jump, "000");
+    }
+}
+
+class SymbolTable{
+    private HashMap<String, Integer> table;
+    private int address;
+
+    public SymbolTable(){
+        this.address = 16;
+        this.table = new HashMap<String, Integer>(){
+            {
+                put("SP", 0);
+                put("LCL", 1);
+                put("ARG", 2);
+                put("THIS", 3);
+                put("THAT", 4);
+                put("SCREEN", 16384);
+                put("KBD", 24576);
+            }
+        };
+
+        for(int i=0; i<=15; i++){
+            this.table.put("R"+i, i);
+        }
+    }
+
+    public void addEntry(String symbol, int address){
+        this.table.put(symbol, address);
+    }
+
+    public boolean contains(String symbol){
+        return this.table.containsKey(symbol);
+    }
+
+    public int getAddress(String symbol){
+        return this.table.getOrDefault(symbol, -1);
     }
 }
